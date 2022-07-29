@@ -1,9 +1,12 @@
 #include "server.hpp"
 
+/*
+	해당 cpp 파일에서만 사용하는 static 함수
+*/
 static void	exit_program(int print, std::string& msg)
 {
 	if (print)
-		std::cout<<"ERROR\n"<<msg<<std::endl;
+		std::cerr<<"ERROR\n"<<msg<<std::endl;
 	exit(print);
 }
 
@@ -24,6 +27,11 @@ static int	check_invalid_password(std::string& pw)
 	return (0);
 }
 
+/*
+	server 클래스 생성자
+
+	멤버변수 초기화(+연결형 소켓의 pollfd 구조체 값 초기화) 및 소켓 bind, listen
+*/
 server::server(char* av[])
 	: _connect_pw(av[2]), _admin_pw("admin")
 {
@@ -36,9 +44,46 @@ server::server(char* av[])
 	this->_connect_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (this->_connect_socket == -1)
 		exit_program(1, FAILED_SOCK);
+
+	// 소켓 옵션에서 bind 시에 local 주소를 재사용할 것인지 여부 true로 set
 	int	optval = 1;
-	if (setsockopt(this->_connect_socket, SOL_SOCKET, SOL_REUSEADDR, &optval, sizeof(optval)) == -1)
+	if (setsockopt(this->_connect_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
 		exit_program(1, FAILED_SET_SOCK);
+	// 소켓 fd 를 비동기로 설정 (MacOS only)
 	if (fcntl(this->_connect_socket, F_SETFL, O_NONBLOCK) == -1)
 		exit_program(1, FAILED_NONBLOCK);
+
+	struct sockaddr_in	serv_addr;
+	std::memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_addr.sin_port = htons(port);
+
+	if (bind(this->_connect_socket, reinterpret_cast<struct sockaddr *>(&serv_addr), sizeof(serv_addr)) == -1)
+		exit_program(1, FAILED_BIND);
+	if (listen(this->_connect_socket, SOMAXCONN) == -1)
+		exit_program(1, FAILED_LISTEN);
+
+	// 벡터 polls의 0번 인덱스 위치는 연결형 소켓을 위함 -> accept 여부 체크
+	this->_polls.push_back(pollfd());
+	this->_polls[0].fd = this->_connect_socket;
+	this->_polls[0].events = POLLIN;
+}
+
+/*
+	server 클래스 멤버 함수
+*/
+std::vector<pollfd>&	server::getPolls(void) const
+{
+	return (this->_polls);
+}
+
+std::map<int, user*>&	server::getUsers(void) const
+{
+	return (this->_users);
+}
+
+std::map<std::string, std::vector<int> >&	server::getChannels(void) const
+{
+	return (this->_channels);
 }

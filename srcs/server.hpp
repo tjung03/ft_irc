@@ -6,14 +6,15 @@
 # include <map>
 # include <string>
 # include <poll.h>
+# include <sys/socket.h>
+# include <arpa/inet.h>
 # include "error_msg.hpp"
 
 # include <sstream>
 # include <cstdlib>
 # include <cctype>
+# include <cstring>
 # include <fcntl.h>
-
-# include <sys/socket.h>
 
 /*
 	server : irc server 클래스
@@ -21,15 +22,15 @@
 class	server
 {
 private:
-	std::string	_connect_pw;
-	std::string	_admin_pw;
+	std::string	_connect_pw;	// 서버 비밀번호
+	std::string	_admin_pw;		// 전체 관리자 비밀번호
 
-	int	_port;
-	int	_connect_socket;
+	int	_port;				// connect 서버 포트
+	int	_connect_socket;	// connect 소켓 fd
 
-	std::vector<pollfd>							_polls;
-	std::map<int, user*>						_users;
-	std::map<std::string, std::vector<int> >	_channels;
+	std::vector<pollfd>							_polls;		// 단일 프로세스 다중 파일 입출력 체크하기 위한 자료구조(순회하면서 socket events 발생을 감시)
+	std::map<int, user *>						_users;		// 등록 유저 자료구조
+	std::map<std::string, std::vector<int> >	_channels;	// 채팅 채널 자료구조
 
 	server(void);
 	server(const server& other);
@@ -38,7 +39,10 @@ private:
 public:
 	server(char* av[]);
 
-	std::vector<pollfd>&	getPolls(void) const;
+	// getter 함수
+	std::vector<pollfd>&						getPolls(void) const;
+	std::map<int, user *>&						getUsers(void) const;
+	std::map<std::string, std::vector<int> >&	getChannels(void) const;
 };
 
 #endif

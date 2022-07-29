@@ -8,5 +8,7 @@
 # define FAILED_SOCK		"failed socket"
 # define FAILED_SET_SOCK	"failed set socket option"
 # define FAILED_NONBLOCK	"failed set file nonblock"
+# define FAILED_BIND		"failed bind"
+# define FAILED_LISTEN		"failed listen"
 
 #endif

@@ -22,7 +22,7 @@ int	main(int argc, char *argv)
 {
 	if (argc != 3)
 	{
-		std::cout<<INVALID_ARGU_CNT<<"\n./ircserv <port> <server_password>"<<std::endl;
+		std::cerr<<INVALID_ARGU_CNT<<"\n./ircserv <port> <server_password>"<<std::endl;
 		return (1);
 	}
 
