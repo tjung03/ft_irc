@@ -1,0 +1,84 @@
+#include "user.hpp"
+#include "arpa/inet.h"
+
+/*
+	user 클래스 생성자
+*/
+user::user(int user_fd, struct sockaddr_in &client_addr)
+	: _user_fd(user_fd), _client_addr(client_addr), _nick(""), _user(""), _is_admin(false), _is_host(false), _sign_in(false)
+{
+	fcntl(this->_user_fd, F_SETFL, O_NONBLOCK);
+	// 유저 정보(설정) 초기화 + 호스트네임 얻기
+	this->_host_name = inet_ntoa(this->_client_addr.sin_addr);
+}
+
+// 소멸자
+user::~user(void) { }
+
+/*
+	user 클래스 멤버 함수
+*/
+int	user::getUserFd(void)
+{
+	return (this->_user_fd);
+}
+
+struct sockaddr_in&	user::getClientAddr(void)
+{
+	return (this->_client_addr);
+}
+
+std::string&	user::getNick(void)
+{
+	return (this->_nick);
+}
+
+std::string&	user::getUser(void)
+{
+	return (this->_user);
+}
+
+std::string&	user::getHostName(void)
+{
+	return (this->_host_name);
+}
+
+bool	user::getIsAdmin(void)
+{
+	return (this->_is_admin);
+}
+
+bool	user::getIsHost(void)
+{
+	return (this->_is_host);
+}
+
+bool	user::getSignIn(void)
+{
+	return (this->_sign_in);
+}
+
+void	user::setNick(std::string& nick)
+{
+	this->_nick = nick;
+}
+
+void	user::setUser(std::string& user)
+{
+	this->_user = user;
+}
+
+void	user::setTrueAdmin(void)
+{
+	this->_is_admin = true;
+}
+
+void	user::setTrueHost(bool host)
+{
+	this->_is_host = true;
+}
+
+void	user::setTrueSignIn(void)
+{
+	this->_sign_in = true;
+}

@@ -8,13 +8,20 @@
 # include <poll.h>
 # include <sys/socket.h>
 # include <arpa/inet.h>
-# include "error_msg.hpp"
 
+# include <unistd.h>
 # include <sstream>
 # include <cstdlib>
 # include <cctype>
 # include <cstring>
 # include <fcntl.h>
+
+# include "error_msg.hpp"
+# include "user.hpp"
+
+int	check_invalid_password(std::string& pw);
+
+class user;
 
 /*
 	server : irc server 클래스
@@ -34,15 +41,17 @@ private:
 
 	server(void);
 	server(const server& other);
-	server&	operater=(const server& other);
+	server&	operator=(const server& other);
 
 public:
 	server(char* av[]);
+	~server(void);
 
 	// getter 함수
-	std::vector<pollfd>&						getPolls(void) const;
-	std::map<int, user *>&						getUsers(void) const;
-	std::map<std::string, std::vector<int> >&	getChannels(void) const;
+	int											getConnectSocket(void);
+	std::vector<pollfd>&						getPolls(void);
+	std::map<int, user *>&						getUsers(void);
+	std::map<std::string, std::vector<int> >&	getChannels(void);
 };
 
 #endif

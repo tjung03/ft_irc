@@ -1,9 +1,22 @@
 #include "server.hpp"
 
 /*
+	util 함수
+*/
+int	check_invalid_password(std::string& pw)
+{
+	for (int i = 0; i < pw.size(); ++i)
+	{
+		if (!std::isalpha(pw[i]) && !std::isdigit(pw[i]))
+			return (1);
+	}
+	return (0);
+}
+
+/*
 	해당 cpp 파일에서만 사용하는 static 함수
 */
-static void	exit_program(int print, std::string& msg)
+static void	exit_program(int print, const std::string& msg)
 {
 	if (print)
 		std::cerr<<"ERROR\n"<<msg<<std::endl;
@@ -14,16 +27,6 @@ static int	check_invalid_port(int port)
 {
 	if (1024 > port || 49151 < port)
 		return (1);
-	return (0);
-}
-
-static int	check_invalid_password(std::string& pw)
-{
-	for (int i = 0; i < pw.size(); ++i)
-	{
-		if (!std::isalpha(pw[i]) && !std::isdigit(pw[i]))
-			return (1);
-	}
 	return (0);
 }
 
@@ -41,6 +44,11 @@ server::server(char* av[])
 	if (check_invalid_password(this->_connect_pw))
 		exit_program(1, UNAVAILABLE_PW);
 
+	// 관리자 접속 체크
+	bool	is_admin = false;
+	if (!this->_connect_pw.compare(this->_admin_pw))
+		is_admin = true;
+
 	this->_connect_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (this->_connect_socket == -1)
 		exit_program(1, FAILED_SOCK);
@@ -57,7 +65,7 @@ server::server(char* av[])
 	std::memset(&serv_addr, 0, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serv_addr.sin_port = htons(port);
+	serv_addr.sin_port = htons(this->_port);
 
 	if (bind(this->_connect_socket, reinterpret_cast<struct sockaddr *>(&serv_addr), sizeof(serv_addr)) == -1)
 		exit_program(1, FAILED_BIND);
@@ -70,20 +78,28 @@ server::server(char* av[])
 	this->_polls[0].events = POLLIN;
 }
 
+// 클래스 소멸자
+server::~server(void) { }
+
 /*
 	server 클래스 멤버 함수
 */
-std::vector<pollfd>&	server::getPolls(void) const
+int	server::getConnectSocket(void)
+{
+	return (this->_connect_socket);
+}
+
+std::vector<pollfd>&	server::getPolls(void)
 {
 	return (this->_polls);
 }
 
-std::map<int, user*>&	server::getUsers(void) const
+std::map<int, user*>&	server::getUsers(void)
 {
 	return (this->_users);
 }
 
-std::map<std::string, std::vector<int> >&	server::getChannels(void) const
+std::map<std::string, std::vector<int> >&	server::getChannels(void)
 {
 	return (this->_channels);
 }

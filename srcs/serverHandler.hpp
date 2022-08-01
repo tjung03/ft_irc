@@ -13,13 +13,18 @@ private:
 
 	serverHandler(void);
 	serverHandler(const serverHandler& other);
-	serverHandler&	operater=(const serverHandler& other);
+	serverHandler&	operator=(const serverHandler& other);
 
 public:
 	serverHandler(char* av[]);
 	~serverHandler(void);
 
-	void	server_on(void);	// 서버 컨트롤 목적
+	server&	getServ(void);
+
+	void	serverOn(void);				// 서버 컨트롤 목적
+	void	disconnect(int user_fd);	// 유저 연결 해제
+	void	registrationUser(int user_fd, std::string& buffer);	// 유저 등록
+	void	parsingMSG(int user_fd, std::string& buffer);		// 수신 메시지 파싱
 };
 
 #endif
