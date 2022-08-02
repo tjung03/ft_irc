@@ -38,8 +38,8 @@ public:
 	bool				getIsHost(void);
 	bool				getSignIn(void);
 
-	void	setNick(std::string& nick);
-	void	setUser(std::string& user);
+	void	setNick(const std::string& nick);
+	void	setUser(const std::string& user);
 	void	setTruePass(void);
 	void	setTrueAdmin(void);
 	void	setTrueHost(bool host);

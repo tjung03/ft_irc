@@ -3,7 +3,7 @@
 /*
 	util 함수
 */
-int	check_invalid_password(std::string& pw)
+int	check_invalid_string(const std::string& pw)
 {
 	for (int i = 0; i < pw.size(); ++i)
 	{
@@ -41,7 +41,7 @@ server::server(char* av[])
 	this->_port = std::atoi(av[1]);
 	if (check_invalid_port(this->_port))
 		exit_program(1, UNAVAILABLE_PORT);
-	if (check_invalid_password(this->_connect_pw))
+	if (check_invalid_string(this->_connect_pw))
 		exit_program(1, UNAVAILABLE_PW);
 
 	// 관리자 접속 체크

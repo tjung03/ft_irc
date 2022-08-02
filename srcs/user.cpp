@@ -63,17 +63,17 @@ bool	user::getSignIn(void)
 	return (this->_sign_in);
 }
 
-void	user::setNick(std::string& nick)
+void	user::setNick(const std::string& nick)
 {
 	this->_nick = nick;
 }
 
-void	user::setUser(std::string& user)
+void	user::setUser(const std::string& user)
 {
 	this->_user = user;
 }
 
-void	setTruePass(void)
+void	user::setTruePass(void)
 {
 	this->_is_pass = true;
 }

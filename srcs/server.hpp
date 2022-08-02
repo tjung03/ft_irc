@@ -19,7 +19,7 @@
 # include "error_msg.hpp"
 # include "user.hpp"
 
-int	check_invalid_password(std::string& pw);
+int	check_invalid_string(const std::string& pw);
 
 class user;
 

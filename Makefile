@@ -3,7 +3,10 @@ NAME =		ircserv
 CPP = 		c++
 CPPFLAGS =	-fsanitize=address -pedantic -std=c++98 -W -Wall -Wextra -Werror
 
-SRCS =		
+SRCS =		./main.cpp \
+			./srcs/serverHandler.cpp \
+			./srcs/server.cpp \
+			./srcs/user.cpp
 
 OBJS =		$(SRCS:.cpp=.o)
 
