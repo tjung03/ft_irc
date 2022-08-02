@@ -84,6 +84,16 @@ server::~server(void) { }
 /*
 	server 클래스 멤버 함수
 */
+std::string&	server::getConnectPW(void)
+{
+	return (this->_connect_pw);
+}
+
+std::string&	server::getAdminPW(void)
+{
+	return (this->_admin_pw);
+}
+
 int	server::getConnectSocket(void)
 {
 	return (this->_connect_socket);

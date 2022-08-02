@@ -111,7 +111,7 @@ void	serverHandler::disconnect(int user_fd)
 		{
 			if (*users_it == user_fd)
 			{
-				// commandPart(user_fd, '#' + chanl_it->first);
+				commandPart(user_fd, '#' + chanl_it->first);//
 				break ;
 			}
 		}
@@ -145,18 +145,32 @@ void	serverHandler::registrationUser(int user_fd, std::string& buffer)
 		buffer.erase(0, separator + 1);
 
 	// 서버 연결 비밀번호 입력 후 닉네임, 아이디 입력 받자.
+	// PASS NICK USER
 	if (cmd == "PASS")
 	{
-		// commandPass(user_fd, buffer);
+		if (commandPass(user_fd, buffer) == true)
+			this->_serv.getUsers()[user_fd]->setTruePass();
+	}
+	if (this->_serv.getUsers()[user_fd]->getIsPass() == true)
+	{
 		if (cmd == "NICK")
-			; // commandNick(user_fd, buffer);
+			commandNick(user_fd, buffer);
 		else if (cmd == "USER")
-			; // commandUser(user_fd, buffer);
+		{
+			if (this->_serv.getUsers()[user_fd]->getNick() == "")
+				sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, "UNKNOWN", ":Not enough parameters :NICK <nickname>\r\n");
+			commandUser(user_fd, buffer);//
+		}
 		else
-			; // sendNumericReplies(user_fd, ERR_NOTREGISTERED, "UNKNOWN", "Check NICK USER\r\n")
+		{
+			if (this->_serv.getUsers()[user_fd]->getNick() == "")
+				sendNumericReplies(user_fd, ERR_UNKNOWNCOMMAND, "UNKNOWN", ":Unknown command :" + cmd + " " + buffer + "\r\n");
+			else
+				sendNumericReplies(user_fd, ERR_UNKNOWNCOMMAND, this->_serv.getUsers()[user_fd]->getNick(), ":Unknown command :" + cmd + " " + buffer + "\r\n");
+		}
 	}
 	else
-		; // sendNumericReplies(user_fd, ERR_PASSWDMISMATCH, "UNKNOWN", "Check PASS\r\n")
+		sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, "UNKNOWN", ":Not enough parameters :PASS <password>\r\n");
 }
 
 void	serverHandler::parsingMSG(int user_fd, std::string& buffer)
@@ -171,13 +185,62 @@ void	serverHandler::parsingMSG(int user_fd, std::string& buffer)
 	else
 		buffer.erase(0, separator + 1);
 
-	// PRIVMSG LIST JOIN QUIT PART ADMIN KILL NICK USER
-//	if (cmd == "PRIVMSG")
-//		;
-//	else if (cmd == "...")
-//		;
-//	...
-//		;
-//	else
-//		sendNumericReplies(알 수 없는 명령어 처리)
+	// USER NICK PRIVMSG JOIN PART KILL QUIT ADMIN LIST
+	std::map<int, user *>&	users = this->_serv.getUsers();
+
+	if (cmd == "USER")
+		sendNumericReplies(user_fd, ERR_ALREADYREGISTRED, users[user_fd]->getNick(), ":You may not reregister\r\n");
+	else if (cmd == "NICK")
+		commandNick(user_fd, buffer);
+	else if (cmd == "PRIVMSG")
+		commandPrivmsg(user_fd, buffer);//
+	else if (cmd == "JOIN")
+		commandJoin(user_fd, buffer);//
+	else if (cmd == "PART")
+		commandPart(user_fd, buffer);//
+	else if (cmd == "KILL")
+		commandKill(user_fd, buffer);//
+	else if (cmd == "QUIT")
+		commandQuit(user_fd);//
+	else if (cmd == "ADMIN")
+		commandAdmin(user_fd, buffer);//
+	else if (cmd == "LIST")
+		commandList(user_fd);//
+	else
+		sendNumericReplies(user_fd, ERR_UNKNOWNCOMMAND, users[user_fd]->getNick(), ":Unknown command :" + cmd + " " + buffer + "\r\n")
+}
+
+void	serverHandler::sendNumericReplies(int user_fd, std::string& numeric, std::string& user_name, std::string& replies)
+{
+	std::string	numeric_replies = numeric + " " + user_name + " " + replies;
+	send(user_fd, numeric_replies.c_str(), numeric_replies.length(), 0);
+}
+
+/*
+	command 함수 : PASS NICK USER PRIVMSG JOIN PART KILL QUIT ADMIN LIST
+*/
+bool	serverHandler::commandPass(int user_fd, std::string& val)
+{
+	if (check_invalid_password(val))
+		sendNumericReplies(user_fd, ERR_PASSWDMISMATCH, "UNKNOWN", ":Password incorrect :Pleas, alphabet or numbers\r\n");
+	else
+	{
+		if (!val.compare(this->_serv.getAdminPW())
+			this->_serv.getUsers()[user_fd]->setTrueAdmin();
+		else if (val.compare(this->_serv.getConnectPW()) != 0)
+		{
+			sendNumericReplies(user_fd, ERR_PASSWDMISMATCH, "UNKNOWN", ":Password incorrect :Pleas, re-enter\r\n");
+			return (false);
+		}
+		return (true);
+	}
+	return (false);
+}
+
+void	serverHandler::commandNick(int user_fd, std::string& val)
+{
+	if (check_invalid_password(val))
+		sendNumericReplies(user_fd, ERR_ERRONEUSNICKNAME, "UNKNOWN", ":Erroneus nickname :Pleas, alphabet or numbers\r\n");
+	// else
+	// 여기서부터 시작-> 알파벳, 숫자로 들어왔을 때 닉넴 처리 등록
 }

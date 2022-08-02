@@ -4,10 +4,9 @@
 
 /*
 	To do list (serverOn)
-	1. 유저 등록
-	2. 메세지 파싱
-	3. cmd_part
-	4. numeric replies
+	  커맨드 함수
+		- 유저 등록
+		- 메세지 파싱
 */
 
 bool	g_server_on = true;

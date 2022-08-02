@@ -48,6 +48,8 @@ public:
 	~server(void);
 
 	// getter 함수
+	std::string&								getConnectPW(void);
+	std::string&								getAdminPW(void);
 	int											getConnectSocket(void);
 	std::vector<pollfd>&						getPolls(void);
 	std::map<int, user *>&						getUsers(void);
