@@ -129,6 +129,7 @@ void	serverHandler::serverOn(void)
 					this->parsingMSG(it->fd, buffer);
 				buffer.clear();
 			}
+			break ;
 		}
 	}
 }
@@ -141,8 +142,9 @@ void	serverHandler::disconnect(int user_fd)
 
 	channels::iterator	chanl_it = this->_serv.getChannels().begin();
 	channels::iterator	chanl_end = this->_serv.getChannels().end();
-	users::iterator		users_it;
-	users::iterator		users_end;
+
+	users::iterator	users_it;
+	users::iterator	users_end;
 
 	std::string	val;
 
@@ -161,7 +163,6 @@ void	serverHandler::disconnect(int user_fd)
 			}
 		}
 	}
-
 	polls::iterator	polls_it = this->_serv.getPolls().begin() + 1;
 	polls::iterator	polls_end = this->_serv.getPolls().end();
 	for (; polls_it != polls_end; ++polls_it)
@@ -196,7 +197,7 @@ void	serverHandler::registrationUser(int user_fd, std::string& buffer)
 		if (commandPass(user_fd, buffer) == true)
 			this->_serv.getUsers()[user_fd]->setTruePass();
 	}
-	if (this->_serv.getUsers()[user_fd]->getIsPass() == true)
+	else if (this->_serv.getUsers()[user_fd]->getIsPass() == true)
 	{
 		if (cmd == "NICK")
 			commandNick(user_fd, buffer);
@@ -238,8 +239,8 @@ void	serverHandler::parsingMSG(int user_fd, std::string& buffer)
 		sendNumericReplies(user_fd, ERR_ALREADYREGISTRED, users[user_fd]->getNick(), ":You may not reregister\r\n");
 	else if (cmd == "NICK")
 		commandNick(user_fd, buffer);
-	else if (cmd == "PRIVMSG")
-		commandPrivmsg(user_fd, buffer);
+	else if (cmd == "PRIVMSG" || cmd == "NOTICE")
+		commandPrivmsg(user_fd, buffer, cmd);
 	else if (cmd == "JOIN")
 		commandJoin(user_fd, buffer);
 	else if (cmd == "PART")
@@ -353,7 +354,7 @@ void	serverHandler::commandUser(int user_fd, const std::string& val)
 }
 
 // 채널 or 유저(닉) 메세지 보내기
-void	serverHandler::commandPrivmsg(int user_fd, std::string& val)
+void	serverHandler::commandPrivmsg(int user_fd, std::string& val, const std::string& cmd)
 {
 	typedef std::map<int, user *>						t_users;
 	typedef std::map<std::string, std::vector<int> >	t_chanls;
@@ -388,7 +389,7 @@ void	serverHandler::commandPrivmsg(int user_fd, std::string& val)
 				if (*chanls_it == user_fd)
 				{
 					val = get_full_user_info(users[user_fd]->getNick(), users[user_fd]->getUser(), users[user_fd]->getHostName()) \
-						+ " PRIVMSG #" + receiver + " " + val;
+						+ " " + cmd + " #" + receiver + " " + val;
 					chanls_it = chanls[receiver].begin();
 					chanls_end = chanls[receiver].end();
 					for (; chanls_it != chanls_end; ++chanls_it)
@@ -411,7 +412,7 @@ void	serverHandler::commandPrivmsg(int user_fd, std::string& val)
 		if (users_it->second->getNick() == receiver)
 		{
 			val = get_full_user_info(users[user_fd]->getNick(), users[user_fd]->getUser(), users[user_fd]->getHostName()) \
-				+ " PRIVMSG " + users[users_it->first]->getNick() + val;
+				+ " PRIVMSG " + users[users_it->first]->getNick() + " :" + val;
 			send(users_it->second->getUserFd(), val.c_str(), val.length(), 0);
 			return ;
 		}
@@ -602,12 +603,12 @@ void	serverHandler::commandKick(int user_fd, std::string& val)
 							sendNumericReplies(user_fd, ERR_NOPRIVILEGES, users[user_fd]->getNick(), ":Permission Denied :Target is a host\r\n");
 						else
 						{
-							msg = "#" + chanl + " " + val;
-							commandPart(*chanls_it, msg); msg.clear();
-
 							sendNumericReplies(user_fd, RPL_WELCOME, users[user_fd]->getNick(), ":Succeed KICK :'" + val + "' at #" + chanl + "\r\n");
 							msg = "You were expelled from #" + chanl + "\r\n";
 							send(*chanls_it, msg.c_str(), msg.length(), 0);
+
+							msg = "#" + chanl;
+							commandPart(*chanls_it, msg); msg.clear();
 						}
 					}
 					return ;
