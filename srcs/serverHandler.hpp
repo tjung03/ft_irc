@@ -4,14 +4,19 @@
 # include "server.hpp"
 
 # define RPL_WELCOME			"001"
+# define ERR_NOSUCHNICK			"401"
+# define ERR_NOSUCHCHANNEL		"403"
 # define ERR_UNKNOWNCOMMAND		"421"
 # define ERR_ERRONEUSNICKNAME	"432"
 # define ERR_NICKNAMEINUSE		"433"
+# define ERR_NOTONCHANNEL		"442"
+# define ERR_USERONCHANNEL		"443"
 # define ERR_USERSDISABLED		"446"
 # define ERR_NOTREGISTERED		"451"
 # define ERR_NEEDMOREPARAMS		"461"
 # define ERR_ALREADYREGISTRED	"462"
 # define ERR_PASSWDMISMATCH		"464"
+# define ERR_NOPRIVILEGES		"481"
 
 class user;
 
@@ -45,14 +50,13 @@ public:
 	bool	commandPass(int user_fd, const std::string& val);
 	void	commandNick(int user_fd, const std::string& val);
 	void	commandUser(int user_fd, const std::string& val);
-	void	commandPrivmsg(int user_fd, const std::string& val);
-	void	commandJoin(int user_fd, const std::string& val);
-	void	commandPart(int user_fd, const std::string& val);
-	void	commandKill(int user_fd, const std::string& val);
-	void	commandQuit(int user_fd);
-	void	commandAdmin(int user_fd, const std::string& val);
-//	void	commandHost(int user_fd, const std::string& val);
+	void	commandPrivmsg(int user_fd, std::string& val);
+	void	commandJoin(int user_fd, std::string& val);
+	void	commandPart(int user_fd, std::string& val);
+	void	commandKick(int user_fd, std::string& val);
+	void	commandHost(int user_fd, std::string& val);
 	void	commandList(int user_fd);
+	void	commandQuit(int user_fd);
 };
 
 #endif

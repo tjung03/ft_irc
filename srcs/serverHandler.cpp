@@ -38,6 +38,21 @@ static std::string&	get_full_user_info(const std::string& nick, const std::strin
 	return (ret);
 }
 
+// commandJoin 에서 다중 채널 접속할 때 구분자 처리
+static std::string&	remove_separator(const std::string& val)
+{
+	std::string	buffer;
+	int			val_len = val.length();
+
+	buffer.clear();
+	for (int i = 0; i < val_len; ++i)
+	{
+		if (val[i] != ',' && val[i] != ' ')
+			buffer += val[i];
+	}
+	return (buffer);
+}
+
 
 /*
 	server 클래스 생성자, 소멸자
@@ -129,6 +144,9 @@ void	serverHandler::disconnect(int user_fd)
 	users::iterator		users_it;
 	users::iterator		users_end;
 
+	std::string	val;
+
+	val.clear();
 	for (; chanl_it != chanl_end; ++chanl_it)
 	{
 		users_it = this->_serv.getChannels()[chanl_it->first].begin();
@@ -137,7 +155,8 @@ void	serverHandler::disconnect(int user_fd)
 		{
 			if (*users_it == user_fd)
 			{
-				commandPart(user_fd, '#' + chanl_it->first);
+				val = "#" + chanl_it->first;
+				commandPart(user_fd, val);
 				break ;
 			}
 		}
@@ -212,7 +231,7 @@ void	serverHandler::parsingMSG(int user_fd, std::string& buffer)
 	else
 		buffer.erase(0, separator + 1);
 
-	// USER NICK PRIVMSG JOIN PART KILL QUIT ADMIN LIST
+	// USER NICK PRIVMSG JOIN PART KICK QUIT LIST
 	std::map<int, user *>&	users = this->_serv.getUsers();
 
 	if (cmd == "USER")
@@ -225,12 +244,12 @@ void	serverHandler::parsingMSG(int user_fd, std::string& buffer)
 		commandJoin(user_fd, buffer);
 	else if (cmd == "PART")
 		commandPart(user_fd, buffer);
-	else if (cmd == "KILL")
-		commandKill(user_fd, buffer);
+	else if (cmd == "KICK")
+		commandKick(user_fd, buffer);
+	else if (cmd == "HOST")
+		commandHost(user_fd, buffer);
 	else if (cmd == "QUIT")
 		commandQuit(user_fd);
-	else if (cmd == "ADMIN")
-		commandAdmin(user_fd, buffer);
 	else if (cmd == "LIST")
 		commandList(user_fd);
 	else
@@ -254,10 +273,8 @@ void	serverHandler::check_user_info(user* user_, int user_fd)
 		else
 		{
 			user_->setTrueSignIn();	// Succeed SignIn
-
-			std::string	temp = "Welcome to the Internet Relay Network\r\n";
-			send(user_fd, temp.c_str(), temp.length(), 0);
-			temp = get_full_user_info(user_->getNick(), user_->getUser(), user_->getHostName()) + "\r\n";
+			sendNumericReplies(user_fd, RPL_WELCOME, user_->getNick(), ":Welcome to the Internet Relay Network\r\n");
+			std::string	temp = get_full_user_info(user_->getNick(), user_->getUser(), user_->getHostName()) + "\r\n";
 			send(user_fd, temp.c_str(), temp.length(), 0);
 		}
 	}
@@ -265,13 +282,13 @@ void	serverHandler::check_user_info(user* user_, int user_fd)
 
 void	serverHandler::broadcast_message(int user_fd, const std::string& ch_name, const std::string& cmd)
 {
-	std::map<int, user *>&		users_ = this->_serv.getUsers();
-	std::vector<int>::iterator	users_fd_it = this->_serv.getChannels()[ch_name].begin();
-	std::vector<int>::iterator	users_fd_end = this->_serv.getChannels()[ch_name].end();
+	std::map<int, user *>&	users_ = this->_serv.getUsers();
 
 	std::string	msg = get_full_user_info(users_[user_fd]->getNick(), users_[user_fd]->getUser(), users_[user_fd]->getHostName());
 	msg = msg + " " + cmd + " #" + ch_name + "\r\n";
 
+	std::vector<int>::iterator	users_fd_it = this->_serv.getChannels()[ch_name].begin();
+	std::vector<int>::iterator	users_fd_end = this->_serv.getChannels()[ch_name].end();
 	for (; users_fd_it != users_fd_end; ++users_fd_it)
 	{
 		if (*users_fd_it != user_fd)
@@ -281,8 +298,9 @@ void	serverHandler::broadcast_message(int user_fd, const std::string& ch_name, c
 
 
 /*
-	command 함수 : PASS NICK USER PRIVMSG JOIN PART KILL QUIT ADMIN (HOST) LIST
+	command 함수 : PASS NICK USER PRIVMSG JOIN PART KICK QUIT (HOST) LIST
 */
+// 서버 연결 비밀번호 입력 (체크)
 bool	serverHandler::commandPass(int user_fd, const std::string& val)
 {
 	if (check_invalid_string(val))
@@ -301,6 +319,7 @@ bool	serverHandler::commandPass(int user_fd, const std::string& val)
 	return (false);
 }
 
+// 닉 정보 입력, 기존 유저면 닉 변경
 void	serverHandler::commandNick(int user_fd, const std::string& val)
 {
 	if (check_invalid_string(val))
@@ -319,6 +338,7 @@ void	serverHandler::commandNick(int user_fd, const std::string& val)
 	}
 }
 
+// 유저 정보 입력
 void	serverHandler::commandUser(int user_fd, const std::string& val)
 {
 	if (val.find(' ', 0) != std::string::npos)
@@ -332,31 +352,378 @@ void	serverHandler::commandUser(int user_fd, const std::string& val)
 	}
 }
 
-// 여기서부터 할 차례
-void	serverHandler::commandPrivmsg(int user_fd, const std::string& val)
+// 채널 or 유저(닉) 메세지 보내기
+void	serverHandler::commandPrivmsg(int user_fd, std::string& val)
 {
+	typedef std::map<int, user *>						t_users;
+	typedef std::map<std::string, std::vector<int> >	t_chanls;
+
+	t_users&	users = this->_serv.getUsers();
+	std::size_t	separator;
+	std::string	receiver;
+
+	separator = val.find(' ', 0);
+	if (!val.size() || separator == std::string::npos)
+	{
+		sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, users[user_fd]->getNick(), ":Not enough parameters :PRIVMSG <nickname|#channel> <message>\r\n");
+		return ;
+	}
+	receiver = val.substr(0, separator);
+	val.erase(0, separator + 1);
+	val = val + "\r\n";
+	// 채널에 메세지를 보낼 때
+	if (receiver[0] == '#')
+	{
+		t_chanls&	chanls = this->_serv.getChannels();
+
+		receiver.erase(0, 1);
+		if (chanls.find(receiver) == chanls.end())
+			sendNumericReplies(user_fd, ERR_NOSUCHCHANNEL, users[user_fd]->getNick(), ":No such #" + receiver + " :Check 'LIST'\r\n");
+		else
+		{
+			std::vector<int>::iterator	chanls_it = chanls[receiver].begin();
+			std::vector<int>::iterator	chanls_end = chanls[receiver].end();
+			for (; chanls_it != chanls_end; ++chanls_it)
+			{
+				if (*chanls_it == user_fd)
+				{
+					val = get_full_user_info(users[user_fd]->getNick(), users[user_fd]->getUser(), users[user_fd]->getHostName()) \
+						+ " PRIVMSG #" + receiver + " " + val;
+					chanls_it = chanls[receiver].begin();
+					chanls_end = chanls[receiver].end();
+					for (; chanls_it != chanls_end; ++chanls_it)
+					{
+						if (*chanls_it != user_fd)
+							send(*chanls_it, val.c_str(), val.length(), 0);
+					}
+					return ;
+				}
+			}
+			sendNumericReplies(user_fd, ERR_NOTONCHANNEL, users[user_fd]->getNick(), ":You're not on that #" + receiver + "\r\n");
+		}
+		return ;
+	}
+	// 유저에게 메세지를 보낼 때
+	t_users::iterator	users_it = users.begin();
+	t_users::iterator	users_end = users.end();
+	for (; users_it != users_end; ++users_it)
+	{
+		if (users_it->second->getNick() == receiver)
+		{
+			val = get_full_user_info(users[user_fd]->getNick(), users[user_fd]->getUser(), users[user_fd]->getHostName()) \
+				+ " PRIVMSG " + users[users_it->first]->getNick() + val;
+			send(users_it->second->getUserFd(), val.c_str(), val.length(), 0);
+			return ;
+		}
+	}
+	sendNumericReplies(user_fd, ERR_NOSUCHNICK, users[user_fd]->getNick(), ":No such nickname :" + receiver + "\r\n");
 }
 
-void	serverHandler::commandJoin(int user_fd, const std::string& val)
+// 채널 참가하기
+void	serverHandler::commandJoin(int user_fd, std::string& val)
 {
+	typedef std::map<int, user *>						t_users;
+	typedef std::map<std::string, std::vector<int> >	t_chanls;
+
+	t_users&	users = this->_serv.getUsers();
+	t_chanls&	channels = this->_serv.getChannels();
+
+	std::string	chanl;
+	int			sharps = 0;
+	int			unit;
+
+	val = remove_separator(val);
+	while (1)
+	{
+		if (sharps == std::string::npos)
+			break ;
+		unit = sharps;
+		sharps = val.find('#', sharps + 1);
+		chanl.clear();
+		chanl = val.substr(unit, sharps - unit);
+		if (chanl.at(0) != '#')
+		{
+			sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, users[user_fd]->getNick(), ":Not enough parameters :Channel name must begin '#'\r\n");
+			break ;
+		}
+		chanl.erase(0, 1);
+		if (!chanl.size())
+		{
+			sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, users[user_fd]->getNick(), ":Not enough parameters :Please, enter channel name\r\n");
+			break ;
+		}
+		t_chanls::iterator	chanls_it = channels.begin();
+		t_chanls::iterator	chanls_end = channels.end();
+		for (; chanls_it != chanls_end; ++chanls_it)
+		{
+			if (chanls_it->first == chanl)
+			{
+				std::vector<int>::iterator	users_it = channels[chanls_it->first].begin();
+				std::vector<int>::iterator	users_end = channels[chanls_it->first].end();
+				for (; users_it != users_end; ++users_it)
+				{
+					if (*users_it == user_fd)
+					{
+						sendNumericReplies(user_fd, ERR_USERONCHANNEL, users[user_fd]->getNick(), ":is already on #" + chanls_it->first + "\r\n");
+						break ;
+					}
+				}
+				// join channel
+				if (users_it == users_end)
+				{
+					chanls_it->second.push_back(user_fd);
+					users[user_fd]->setChanlHost(chanls_it->first, false);
+					sendNumericReplies(user_fd, RPL_WELCOME, users[user_fd]->getNick(), ":Succeeded JOIN to #" + chanls_it->first + "\r\n");
+					broadcast_message(user_fd, chanls_it->first, "JOIN");
+				}
+				break ;
+			}
+		}
+		// create new channel
+		if (chanls_it == chanls_end)
+		{
+			channels[chanl].push_back(user_fd);
+			users[user_fd]->setChanlHost(chanl, true);
+			sendNumericReplies(user_fd, RPL_WELCOME, users[user_fd]->getNick(), ":Succeeded JOIN to #" + chanl + " :Create new channel"+ "\r\n");
+		}
+	}
 }
 
-void	serverHandler::commandPart(int user_fd, const std::string& val)
+// 채널 나가기
+void	serverHandler::commandPart(int user_fd, std::string& val)
 {
+	typedef std::map<int, user *>						t_users;
+	typedef std::map<std::string, std::vector<int> >	t_chanls;
+
+	t_users&	users = this->_serv.getUsers();
+	t_chanls&	channels = this->_serv.getChannels();
+
+	std::string	chanl;
+	int			sharps = 0;
+	int			unit;
+
+	val = remove_separator(val);
+	while (1)
+	{
+		if (sharps == std::string::npos)
+			break ;
+		unit = sharps;
+		sharps = val.find('#', sharps + 1);
+		chanl.clear();
+		chanl = val.substr(unit, sharps - unit);
+		if (chanl.at(0) != '#')
+		{
+			sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, users[user_fd]->getNick(), ":Not enough parameters :Channel name must begin '#'\r\n");
+			break ;
+		}
+		chanl.erase(0, 1);
+		if (!chanl.size())
+		{
+			sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, users[user_fd]->getNick(), ":Not enough parameters :Please, enter channel name\r\n");
+			break ;
+		}
+		if (channels.find(chanl) != channels.end())
+		{
+			std::vector<int>::iterator	users_it = channels[chanl].begin();
+			std::vector<int>::iterator	users_end = channels[chanl].end();
+			for (; users_it != users_end; ++users_it)
+			{
+				if (*users_it == user_fd)
+				{
+					channels[chanl].erase(users_it);
+					users[user_fd]->getChanlHost().erase(chanl);
+					sendNumericReplies(user_fd, RPL_WELCOME, users[user_fd]->getNick(), ":Leave channel #" + chanl + "\r\n");
+					broadcast_message(user_fd, chanl, "PART");
+					break ;
+				}
+			}
+			if (users_it == users_end)
+				sendNumericReplies(user_fd, ERR_NOTONCHANNEL, users[user_fd]->getNick(), ":You're not on that #" + chanl + "\r\n");
+		}
+		else
+			sendNumericReplies(user_fd, ERR_NOSUCHCHANNEL, users[user_fd]->getNick(), ":No such #" + chanl + " :Check 'LIST'\r\n");
+	}
 }
 
-void	serverHandler::commandKill(int user_fd, const std::string& val)
+// 추방 명령어 admin host 용
+void	serverHandler::commandKick(int user_fd, std::string& val)
 {
+	typedef std::map<std::string, std::vector<int> >	t_chanls;
+	typedef std::map<int, user *>						t_users;
+
+	t_chanls&	channels = this->_serv.getChannels();
+	t_users&	users = this->_serv.getUsers();
+
+	std::size_t	separator;
+	std::string	chanl;
+
+	separator = val.find('#', 0);
+	if (!val.size() || separator == std::string::npos)
+	{
+		sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, users[user_fd]->getNick(), ":Not enough parameters :KICK <#channel> <nickname>\r\n");
+		return ;
+	}
+	separator = val.find(' ', separator + 1);
+	if (separator == std::string::npos)
+	{
+		sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, users[user_fd]->getNick(), ":Not enough parameters :KICK <#channel> <nickname>\r\n");
+		return ;
+	}
+	chanl = val.substr(0, separator);
+	val.erase(0, separator + 1);
+	if (chanl[0] == '#')
+	{
+		std::string	msg;
+
+		chanl.erase(0, 1);
+		if (channels.find(chanl) == channels.end())
+			sendNumericReplies(user_fd, ERR_NOSUCHCHANNEL, users[user_fd]->getNick(), ":No such #" + chanl + " :Check target infomation\r\n");
+		else
+		{
+			std::map<std::string, bool>::iterator	check = users[user_fd]->getChanlHost().find(chanl);
+			if ((users[user_fd]->getIsAdmin() != true) \
+				&& ((check == users[user_fd]->getChanlHost().end()) || (check != users[user_fd]->getChanlHost().end() && (check->second == false))))
+			{
+				sendNumericReplies(user_fd, ERR_NOPRIVILEGES, users[user_fd]->getNick(), ":Permission Denied :You have no privileges\r\n");
+				return ;
+			}
+
+			std::vector<int>::iterator	chanls_it = channels[chanl].begin();
+			std::vector<int>::iterator	chanls_end = channels[chanl].end();
+			for (; chanls_it != chanls_end; ++chanls_it)
+			{
+				if (users[*chanls_it]->getNick() == val)
+				{
+					if (users[*chanls_it]->getIsAdmin() == true)
+						sendNumericReplies(user_fd, ERR_NOPRIVILEGES, users[user_fd]->getNick(), ":Permission Denied :Target is a admin\r\n");
+					else
+					{
+						if ((users[user_fd]->getIsAdmin() == false) && (users[*chanls_it]->getChanlHost().find(chanl)->second == true))
+							sendNumericReplies(user_fd, ERR_NOPRIVILEGES, users[user_fd]->getNick(), ":Permission Denied :Target is a host\r\n");
+						else
+						{
+							msg = "#" + chanl + " " + val;
+							commandPart(*chanls_it, msg); msg.clear();
+
+							sendNumericReplies(user_fd, RPL_WELCOME, users[user_fd]->getNick(), ":Succeed KICK :'" + val + "' at #" + chanl + "\r\n");
+							msg = "You were expelled from #" + chanl + "\r\n";
+							send(*chanls_it, msg.c_str(), msg.length(), 0);
+						}
+					}
+					return ;
+				}
+			}
+			sendNumericReplies(user_fd, ERR_NOTONCHANNEL, users[user_fd]->getNick(), ":'" + val + "' not on that #" + chanl + "\r\n");
+		}
+		return ;
+	}
+	sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, "ADMIN", ":Not enough parameters :KICK <#channel> <nickname>\r\n");
 }
 
-void	serverHandler::commandQuit(int user_fd)
+// 호스트 임명/해제 admin 용
+void	serverHandler::commandHost(int user_fd, std::string& val)
 {
+	typedef std::map<std::string, std::vector<int> >	t_chanls;
+	typedef std::map<int, user *>						t_users;
+
+	t_chanls&	channels = this->_serv.getChannels();
+	t_users&	users = this->_serv.getUsers();
+
+	if (users[user_fd]->getIsAdmin() == false)
+	{
+		sendNumericReplies(user_fd, ERR_NOPRIVILEGES, users[user_fd]->getNick(), ":Permission Denied\r\n");
+		return ;
+	}
+
+	std::size_t	separator;
+	std::string	chanl;
+
+	separator = val.find('#', 0);
+	if (!val.size() || separator == std::string::npos)
+	{
+		sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, "ADMIN", ":Not enough parameters :HOST <#channel> <nickname>\r\n");
+		return ;
+	}
+	separator = val.find(' ', separator + 1);
+	if (separator == std::string::npos)
+	{
+		sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, "ADMIN", ":Not enough parameters :HOST <#channel> <nickname>\r\n");
+		return ;
+	}
+	chanl = val.substr(0, separator);
+	val.erase(0, separator + 1);
+	if (chanl[0] == '#')
+	{
+		std::string msg;
+
+		chanl.erase(0, 1);
+		if (channels.find(chanl) == channels.end())
+			sendNumericReplies(user_fd, ERR_NOSUCHCHANNEL, "ADMIN", ":No such #" + chanl + " :Check target infomation\r\n");
+		else
+		{
+			std::vector<int>::iterator	chanls_it = channels[chanl].begin();
+			std::vector<int>::iterator	chanls_end = channels[chanl].end();
+			for (; chanls_it != chanls_end; ++chanls_it)
+			{
+				if (users[*chanls_it]->getNick() == val)
+				{
+					if (users[*chanls_it]->getChanlHost()[chanl] == true)
+					{
+						users[*chanls_it]->setChanlHost(chanl, false);
+						msg = "Admin changed :You are not a host\r\n";
+					}
+					else
+					{
+						users[*chanls_it]->setChanlHost(chanl, true);
+						msg = "Admin changed :You are a host\r\n";
+					}
+					sendNumericReplies(user_fd, RPL_WELCOME, "ADMIN", ":Succeed HOST :'" + val + "' at #" + chanl + "\r\n");
+					send(*chanls_it, msg.c_str(), msg.length(), 0);
+					return ;
+				}
+			}
+			sendNumericReplies(user_fd, ERR_NOTONCHANNEL, "ADMIN", ":'" + val + "' not on that #" + chanl + "\r\n");
+		}
+		return ;
+	}
+	sendNumericReplies(user_fd, ERR_NEEDMOREPARAMS, "ADMIN", ":Not enough parameters :HOST <#channel> <nickname>\r\n");
 }
 
-void	serverHandler::commandAdmin(int user_fd, const std::string& val)
-{
-}
-
+// 유저가 참여하고 있는 채널 리스트업 + 전체 채널 리스트업
 void	serverHandler::commandList(int user_fd)
 {
+	sendNumericReplies(user_fd, RPL_WELCOME, this->_serv.getUsers()[user_fd]->getNick(), ":Succeeded list-up\r\n");
+
+	std::string	list = "<- Full Channel List ->\r\n";
+	send(user_fd, list.c_str(), list.length(), 0);
+
+	list.clear();
+	std::map<std::string, std::vector<int> >::iterator	chanls_it = this->_serv.getChannels().begin();
+	std::map<std::string, std::vector<int> >::iterator	chanls_end = this->_serv.getChannels().end();
+	for (; chanls_it != chanls_end; ++chanls_it)
+	{
+		list += "#" + chanls_it->first + "\r\n";
+		send(user_fd, list.c_str(), list.length(), 0);
+		list.clear();
+	}
+
+	list = "<- User Channel List ->\r\n";
+	send(user_fd, list.c_str(), list.length(), 0);
+
+	list.clear();
+	std::map<std::string, bool>::iterator	user_chanls_it = (this->_serv.getUsers()[user_fd])->getChanlHost().begin();
+	std::map<std::string, bool>::iterator	user_chanls_end = (this->_serv.getUsers()[user_fd])->getChanlHost().end();
+	for (; user_chanls_it != user_chanls_end; ++user_chanls_it)
+	{
+		list += "#" + user_chanls_it->first + "\r\n";
+		send(user_fd, list.c_str(), list.length(), 0);
+		list.clear();
+	}
+}
+
+// 서버 연결 해제
+void	serverHandler::commandQuit(int user_fd)
+{
+	sendNumericReplies(user_fd, RPL_WELCOME, this->_serv.getUsers()[user_fd]->getNick(), ":Goodbye\r\n");
+	disconnect(user_fd);
 }
