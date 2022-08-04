@@ -47,7 +47,7 @@ public:
 
 	bool	commandPass(int user_fd, const std::string& val);
 	void	commandNick(int user_fd, const std::string& val);
-	void	commandUser(int user_fd, const std::string& val);
+	void	commandUser(int user_fd, std::string& val);
 	void	commandPrivmsg(int user_fd, std::string& val, const std::string& cmd);
 	void	commandJoin(int user_fd, std::string& val);
 	void	commandPart(int user_fd, std::string& val);

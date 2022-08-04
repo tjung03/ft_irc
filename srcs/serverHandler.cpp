@@ -340,11 +340,15 @@ void	serverHandler::commandNick(int user_fd, const std::string& val)
 }
 
 // 유저 정보 입력
-void	serverHandler::commandUser(int user_fd, const std::string& val)
+void	serverHandler::commandUser(int user_fd, std::string& val)
 {
-	if (val.find(' ', 0) != std::string::npos)
-		sendNumericReplies(user_fd, ERR_USERSDISABLED, this->_serv.getUsers()[user_fd]->getNick(), ":USERS has been disabled :No space\r\n");
-	else if (check_invalid_string(val))
+	std::size_t	separator;
+
+	separator = val.find(' ', 0);
+	if (separator != std::string::npos)
+		val = val.substr(0, separator);
+	std::cout<<val<<std::endl;
+	if (check_invalid_string(val))
 		sendNumericReplies(user_fd, ERR_USERSDISABLED, this->_serv.getUsers()[user_fd]->getNick(), ":USERS has been disabled :Please, re-enter\r\n");
 	else
 	{
