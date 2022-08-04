@@ -5,7 +5,7 @@
 */
 int	check_invalid_string(const std::string& pw)
 {
-	for (int i = 0; i < pw.size(); ++i)
+	for (std::size_t i = 0; i < pw.size(); ++i)
 	{
 		if (!std::isalpha(pw[i]) && !std::isdigit(pw[i]))
 			return (1);
@@ -43,11 +43,6 @@ server::server(char* av[])
 		exit_program(1, UNAVAILABLE_PORT);
 	if (check_invalid_string(this->_connect_pw))
 		exit_program(1, UNAVAILABLE_PW);
-
-	// 관리자 접속 체크
-	bool	is_admin = false;
-	if (!this->_connect_pw.compare(this->_admin_pw))
-		is_admin = true;
 
 	this->_connect_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (this->_connect_socket == -1)

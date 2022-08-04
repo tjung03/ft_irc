@@ -32,14 +32,14 @@ static int	check_nick_used(std::map<int, user *>& users, int user_fd, const std:
 }
 
 // 유저 정보를 한 줄로 문자열 반환
-static std::string&	get_full_user_info(const std::string& nick, const std::string& user, const std::string& host_name)
+static std::string	get_full_user_info(const std::string& nick, const std::string& user, const std::string& host_name)
 {
 	std::string	ret = ":" + nick + "!" + user + "@" + host_name;
 	return (ret);
 }
 
 // commandJoin 에서 다중 채널 접속할 때 구분자 처리
-static std::string&	remove_separator(const std::string& val)
+static std::string	remove_separator(const std::string& val)
 {
 	std::string	buffer;
 	int			val_len = val.length();
@@ -429,7 +429,7 @@ void	serverHandler::commandJoin(int user_fd, std::string& val)
 	t_chanls&	channels = this->_serv.getChannels();
 
 	std::string	chanl;
-	int			sharps = 0;
+	std::size_t	sharps = 0;
 	int			unit;
 
 	val = remove_separator(val);
@@ -499,7 +499,7 @@ void	serverHandler::commandPart(int user_fd, std::string& val)
 	t_chanls&	channels = this->_serv.getChannels();
 
 	std::string	chanl;
-	int			sharps = 0;
+	std::size_t	sharps = 0;
 	int			unit;
 
 	val = remove_separator(val);

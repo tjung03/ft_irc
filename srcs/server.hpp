@@ -21,8 +21,6 @@
 
 int	check_invalid_string(const std::string& pw);
 
-class user;
-
 /*
 	server : irc server 클래스
 */

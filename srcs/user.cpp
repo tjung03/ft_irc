@@ -4,7 +4,7 @@
 /*
 	user 클래스 생성자
 */
-user::user(int user_fd, struct sockaddr_in &client_addr)
+user::user(int user_fd, struct sockaddr_in& client_addr)
 	: _user_fd(user_fd), _client_addr(client_addr), _nick(""), _user(""), _is_pass(false), _is_admin(false), _sign_in(false)
 {
 	fcntl(this->_user_fd, F_SETFL, O_NONBLOCK);

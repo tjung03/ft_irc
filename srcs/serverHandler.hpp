@@ -18,8 +18,6 @@
 # define ERR_PASSWDMISMATCH		"464"
 # define ERR_NOPRIVILEGES		"481"
 
-class user;
-
 /*
 	serverHandler : server 객체를 통제하는 클래스
 */

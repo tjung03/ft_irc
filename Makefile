@@ -17,7 +17,8 @@ OBJS =		$(SRCS:.cpp=.o)
 
 all:		$(NAME)
 
-$(NAME):	@echo "\n\033[0;33mCompiling..."
+$(NAME):	$(OBJS)
+			@echo "\n\033[0;33mCompiling..."
 			$(CPP) $(CPPFLAGS) -o $(NAME) $(OBJS)
 			@echo "\033[0m"
 

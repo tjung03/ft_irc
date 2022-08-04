@@ -2,6 +2,7 @@
 # define USER_HPP
 
 # include <sys/socket.h>
+# include <sys/types.h>
 # include <string>
 # include <map>
 # include <fcntl.h>
@@ -27,7 +28,7 @@ private:
 	user&	operator=(const user& other);
 
 public:
-	user(int user_fd, struct sockaddr_in &client_addr);
+	user(int user_fd, struct sockaddr_in& client_addr);
 	~user(void);
 
 	int								getUserFd(void);
