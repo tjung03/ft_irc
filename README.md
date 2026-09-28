@@ -6,9 +6,17 @@ C++98과 POSIX 소켓으로 구현한 IRC 형식의 채팅 서버입니다. 하�
 
 ## 서버 처리 흐름
 
-![Listening Socket과 accept 후 Client Socket, pollfd 배열, 사용자와 채널 상태를 연결한 IRC 서버 처리 흐름](docs/images/server-flow.svg)
+### Socket Event Loop
 
-서버는 하나의 `pollfd` 배열에서 Listening Socket과 `accept()`로 만든 Client Socket을 함께 감시합니다. 새 연결은 Client Socket FD를 User 객체와 `pollfd` 항목에 등록하고, 이후 해당 Socket의 입력을 등록 상태에 따라 사용자 등록 처리 또는 IRC 명령 처리로 분기합니다. 채널은 이름별 User FD 목록으로 관리합니다.
+![Listening Socket에서 accept한 Client Socket을 poll과 recv로 처리하는 Event Loop](docs/images/server-flow.svg)
+
+서버는 Listening Socket과 연결된 Client Socket을 같은 `pollfd` 배열에서 감시합니다. 새 연결은 `accept()`로 Client Socket FD와 User 객체를 만들고, 이후 해당 Socket의 입력 이벤트를 `recv()`로 읽습니다.
+
+### 명령 처리와 상태
+
+![등록 전 사용자 명령과 등록 완료 후 IRC 명령이 User 및 Channel 상태를 거쳐 처리되는 흐름](docs/images/command-state-flow.svg)
+
+등록 전에는 `registrationUser()`가 `PASS`·`NICK`·`USER`를 처리합니다. 등록 완료 후에는 `parsingMSG()`가 명령별로 User와 Channel 상태를 조회·갱신하고 대상 Socket으로 응답 또는 메시지를 전달합니다.
 
 ## 코드 구조
 
