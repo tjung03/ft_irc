@@ -8,25 +8,44 @@ C++98과 POSIX 소켓으로 구현한 IRC 형식의 채팅 서버입니다. 하�
 
 ```mermaid
 flowchart LR
-    C1["Client A"] -->|"TCP"| L["Listening Socket"]
-    C2["Client B"] -->|"TCP"| L
-    L --> P["pollfd 배열<br/>Listening + Client Socket"]
-    P -->|"새 연결"| A["accept()"]
-    A --> U["FD → User 객체 저장"]
-    P -->|"Client 입력"| R["recv()·줄 단위 분리"]
-    R --> G{"등록 완료?"}
-    G -->|"No"| REG["registrationUser()"]
-    G -->|"Yes"| CMD["parsingMSG()"]
+    C1["Client A"]
+    C2["Client B"]
+    L["Listening Socket"]
+    A["accept()"]
+    CS["Accepted Client Socket"]
+    P["pollfd 배열<br/>Listening + Client Socket"]
+    U["FD → User 객체"]
+    R["recv()·줄 단위 분리"]
+    G{"등록 완료?"}
+    REG["registrationUser()"]
+    CMD["parsingMSG()"]
+    CH["채널 이름 → User FD 목록"]
+    S["대상 Socket으로 응답·메시지 전달"]
+
+    C1 -->|"connect"| L
+    C2 -->|"connect"| L
+    L -->|"POLLIN"| P
+    P -->|"새 연결"| A
+    A --> CS
+    A --> U
+    CS --> P
+
+    C1 -->|"명령 입력"| CS
+    C2 -->|"명령 입력"| CS
+    P -->|"Client Socket POLLIN"| R
+    R --> G
+    G -->|"No"| REG
+    G -->|"Yes"| CMD
     REG --> U
     CMD --> U
-    CMD --> CH["채널 이름 → User FD 목록"]
-    U --> S["대상 Socket으로 응답·메시지 전달"]
+    CMD --> CH
+    U --> S
     CH --> S
     S --> C1
     S --> C2
 ```
 
-서버는 하나의 `pollfd` 배열에서 Listening Socket과 연결된 Client Socket을 함께 감시합니다. 새 연결은 User 객체와 `pollfd` 항목으로 등록하고, 이후 입력은 등록 상태에 따라 사용자 등록 처리 또는 IRC 명령 처리로 분기합니다. 채널은 이름별 User FD 목록으로 관리합니다.
+서버는 하나의 `pollfd` 배열에서 Listening Socket과 `accept()`로 만든 Client Socket을 함께 감시합니다. 새 연결은 Client Socket FD를 User 객체와 `pollfd` 항목에 등록하고, 이후 해당 Socket의 입력을 등록 상태에 따라 사용자 등록 처리 또는 IRC 명령 처리로 분기합니다. 채널은 이름별 User FD 목록으로 관리합니다.
 
 ## 코드 구조
 
