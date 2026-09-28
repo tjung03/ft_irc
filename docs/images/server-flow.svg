@@ -45,7 +45,7 @@
 <path d="M735 310 V367 H272 V388" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
 <path d="M735 310 V367 H512 V388" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
 <text x="282" y="376" font-size="12" fill="#64748b">미등록</text><text x="520" y="376" font-size="12" fill="#64748b">등록 완료</text>
-<path d="M375 428 H400" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4"/>
+
 <path d="M615 428 H640" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
 <path d="M615 442 C630 476 635 478 640 478" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
 <path d="M785 412 H810" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
