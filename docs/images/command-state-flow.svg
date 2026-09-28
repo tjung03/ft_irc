@@ -27,7 +27,7 @@
 <rect x="330" y="286" width="165" height="62" rx="10" fill="#fff" stroke="#cbd5e1"/>
 <text x="350" y="323" font-size="16" font-weight="700" fill="#086b62">parsingMSG()</text>
 <rect x="555" y="286" width="180" height="62" rx="10" fill="#fff" stroke="#cbd5e1"/>
-<text x="575" y="312" font-size="16" font-weight="700" fill="#086b62">User / Channel State</text>
+<text x="575" y="312" font-size="16" font-weight="700" fill="#086b62">User / Channel</text>
 <text x="575" y="335" font-size="13" fill="#263a54">FD Map · 참여자 목록</text>
 <rect x="795" y="286" width="120" height="62" rx="10" fill="#fff" stroke="#cbd5e1"/>
 <text x="815" y="312" font-size="16" font-weight="700" fill="#086b62">send()</text>
